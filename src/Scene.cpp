@@ -262,7 +262,7 @@ void Scene::drawWorldFrame() {
 void Scene::Render(VoxelGrid* grid) {
 	glEnable(GL_DEPTH_TEST);
 
-	// Clears the screen to black, clears the color and depth buffers, and resets the modelview matrix.
+	// Clear to black, clear color and depth buffers, and reset modelview matrix.
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();

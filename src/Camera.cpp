@@ -171,7 +171,7 @@ void Camera::initInvertedRt() {
 cv::Point Camera::projectToView(cv::Point3f voxel) {
 	cv::Point point;
 	cv::Mat objectPoints = cv::Mat(3, 3, CV_32FC1);
-	cv::Mat imagePoints  = cv::Mat(3, 2, CV_32FC1);
+	cv::Mat imagePoints = cv::Mat(3, 2, CV_32FC1);
 
 	objectPoints.at<float>(0, 0) = voxel.x;
 	objectPoints.at<float>(0, 1) = voxel.y;
@@ -179,8 +179,8 @@ cv::Point Camera::projectToView(cv::Point3f voxel) {
 
 	cv::projectPoints(objectPoints, rotationVector, translationVector, intrinsicMatrix, distortionCoeffs, imagePoints);
 
-	point.x = imagePoints.at<int>(0, 0);
-	point.y = imagePoints.at<int>(0, 1);
+	point.x = static_cast<int>(imagePoints.at<float>(0, 0));
+	point.y = static_cast<int>(imagePoints.at<float>(0, 1));
 
 	objectPoints.release();
 	imagePoints.release();

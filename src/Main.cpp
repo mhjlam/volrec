@@ -42,9 +42,6 @@
 #include "Camera.hpp"
 #include "VoxelGrid.hpp"
 
-void display() {
-    Scene3D->Render(Voxels);
-}
 
 void quit() {
 	// clean up global objects
@@ -199,6 +196,10 @@ void update(int value = 0) {
     glutSwapBuffers();
     glutTimerFunc(18, update, 0);
     glutPostRedisplay();
+}
+
+void display() {
+    Scene3D->Render(Voxels);
 }
 
 void idle() {
