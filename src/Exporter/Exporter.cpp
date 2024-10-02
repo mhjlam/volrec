@@ -1,46 +1,26 @@
 /**
- * Computer Vision 2011/2012
- *
- * ASSIGNMENT 3 - INI WRITER
- *
- * AUTHORS
- * 		Maurits Lam
- * 		Marco van Laar
- *
- * DATE
- * 		2011-12-01
- *
- * NOTES
- * 		Written for OpenCV 2.3 (C++ code).
- *
- * 		Supplementary for Assignment 3; generates intrinsics/extrinsics and writes them to a file.
+ * EXPORTER
+ * 
+ * Generate intrinsics & extrinsics and write to configuration file.
  */
 
-#include <cstdio>
-#include <iostream>
+#include <format>
 #include <fstream>
+#include <iostream>
 
 #include <opencv2/opencv.hpp>
 
-// draws world frame axes
-void frame(cv::Mat& im, cv::Point2f& origin, cv::Point2f& xPoint, cv::Point2f& yPoint, cv::Point2f& zPoint) {
-	line(im, origin, xPoint, CV_RGB(255, 0, 0), 3);	// x-axis (red)
-	line(im, origin, yPoint, CV_RGB(0, 255, 0), 3);	// y-axis (green)
-	line(im, origin, zPoint, CV_RGB(0, 0, 255), 3);	// z-axis (blue)
-}
-
 int main(int argc, char* argv[]) {
-	unsigned numGoodFrames = 0;
+	cv::uint32_t numGoodFrames = 0;
 
 	// checkerboard properties
-	unsigned xCorners   = 8;					// number of internal corners horizontally
-	unsigned yCorners   = 6;					// number of internal corners vertically
-	unsigned numCorners = xCorners * yCorners;	// total number of internal corners
-	unsigned squareSize = 22;					// square size in mm
+	cv::uint32_t xCorners   = 8;					// number of internal corners horizontally
+	cv::uint32_t yCorners   = 6;					// number of internal corners vertically
+	cv::uint32_t numCorners = xCorners * yCorners;	// total number of internal corners
+	cv::uint32_t squareSize = 22;					// square size in mm
 
-	printf("Board corners: %i x %i\n", xCorners, yCorners);
-	printf("Total number of corners: %i\n", numCorners);
-	printf("------------------------\n");
+	std::cout << "Board corners: " << xCorners << " x " << yCorners << std::endl;
+	std::cout << "Total number of corners: " << numCorners << std::endl << std::endl;
 
 	// lists for image and object points
 	std::vector<std::vector<cv::Point2f>> imagePoints;
@@ -49,63 +29,61 @@ int main(int argc, char* argv[]) {
 	// sequence of detected corners in the frame
 	std::vector<cv::Point2f> detectedCorners;
 
-	// required for calibration further down
+	// required for calibration
 	cv::Size frameSize;
 
 	std::vector<cv::Mat> previews;
 	cv::namedWindow("Preview");
 
 	while (true) {
-		char file[16];
-		sprintf(file, "bg%c.jpg", (49 + numGoodFrames));
+		std::string file = std::format("bg{}.jpg", numGoodFrames);
 		cv::Mat frame = cv::imread(file, cv::IMREAD_ANYCOLOR);
 
 		if (!frame.data) {
 			break;
 		}
 
-		printf("Reading from file %s... ", file);
+		std::cout << "Reading from file " << file << std::endl;
 
-		cv::Mat grayScaleFrame(frame.size(), CV_32FC1);
 		frameSize = frame.size();
+		cv::Mat grayScaleFrame(frameSize, CV_32FC1);
 		numGoodFrames++;
 
 		// attempt to find checkerboard corners
-		bool found = findChessboardCorners(frame, cv::Size(xCorners, yCorners), detectedCorners);
+		bool found = cv::findChessboardCorners(frame, cv::Size(xCorners, yCorners), detectedCorners);
 
 		if (found) {
 			// convert the currentFrame to a gray-scale image
-			cvtColor(frame, grayScaleFrame, cv::COLOR_BGR2GRAY);
+			cv::cvtColor(frame, grayScaleFrame, cv::COLOR_BGR2GRAY);
 
 			// estimate subpixel accuracy on those corners
-			cornerSubPix(grayScaleFrame, detectedCorners, cv::Size(11, 11), cv::Size(-1,-1), cv::TermCriteria((cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER), 30, 0.1));
+			cv::cornerSubPix(grayScaleFrame, detectedCorners, cv::Size(11, 11), cv::Size(-1,-1), cv::TermCriteria((cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER), 30, 0.1));
 
-			drawChessboardCorners(frame, cv::Size(xCorners, yCorners), detectedCorners, found);
+			cv::drawChessboardCorners(frame, cv::Size(xCorners, yCorners), detectedCorners, found);
 			previews.push_back(frame);
 		}
 
 		// store board parameters if it is valid
 		if (detectedCorners.size() == numCorners) {
-			printf("Success!\n");
+			std::cout << "Success!" << std::endl;
 
-			std::vector<cv::Point3f> obj;
-
-			for (unsigned i = 0; i < numCorners; ++i) {
-				obj.push_back(cv::Point3f((i / xCorners) * (squareSize + 100), (i % xCorners) * (squareSize + 100), 0.0f));
+			std::vector<cv::Point3f> objectPoint;
+			for (cv::uint32_t i = 0; i < numCorners; ++i) {
+				objectPoint.push_back(cv::Point3i((i / xCorners) * (squareSize + 100), (i % xCorners) * (squareSize + 100), 0));
 			}
 
 			imagePoints.push_back(detectedCorners);
-			objectPoints.push_back(obj);
+			objectPoints.push_back(objectPoint);
 			detectedCorners.clear();
 		}
 		else {
-			printf("Error detecting corners in %s\n", file);
+			std::cout << "Error detecting corners in " << file << std::endl;
 		}
 	}
 
 	if (numGoodFrames < 3) {
-		printf("Need at least 3 working views.\n");
-		printf("Press any key to exit...");
+		std::cout << "Need at least 3 working views." << std::endl;
+		std::cout << "Press any key to exit..." << std::endl;
 		cv::waitKey(0);
 		return 0;
 	}
@@ -118,12 +96,10 @@ int main(int argc, char* argv[]) {
 	std::vector<cv::Mat> rotation;					// rotation vectors (R)
 	std::vector<cv::Mat> translation;				// translation vectors (t)
 
-	printf("------------------------\n");
-	printf("Calibrating... Press any key to continue to the next image.\n");
-	printf("------------------------\n");
+	std::cout << "Calibrating... Press any key to continue to the next image." << std::endl;
 
 	// calibrate the camera
-	calibrateCamera(objectPoints, imagePoints, frameSize, intrinsic, distortion, rotation, translation);
+	cv::calibrateCamera(objectPoints, imagePoints, frameSize, intrinsic, distortion, rotation, translation);
 
 	for (unsigned i = 0; i < numGoodFrames; ++i) {
 		// define points for world frame
@@ -134,20 +110,24 @@ int main(int argc, char* argv[]) {
 		axes.push_back(cv::Point3f(0.f, 0.f, 2.f));		// z-axis
 
 		std::vector<cv::Point2f> projectedAxes;
-		projectPoints(axes, rotation[i], translation[i], intrinsic, distortion, projectedAxes);
-		frame(previews[i], projectedAxes[0], projectedAxes[1], projectedAxes[2], projectedAxes[3]);
-		imshow("Preview", previews[i]);
+		cv::projectPoints(axes, rotation[i], translation[i], intrinsic, distortion, projectedAxes);
+
+		// Draw axes
+		cv::line(previews[i], projectedAxes[0], projectedAxes[1], CV_RGB(255, 0, 0), 3); // x
+		cv::line(previews[i], projectedAxes[0], projectedAxes[2], CV_RGB(0, 255, 0), 3); // y
+		cv::line(previews[i], projectedAxes[0], projectedAxes[3], CV_RGB(0, 0, 255), 3); // z
+
+		cv::imshow("Preview", previews[i]);
 		cv::waitKey(0);
 	}
 
-	printf("Is this correct? If not, press 'n' or 'q' to abort.\n");
+	std::cout << "Is this correct (Y/N)?" << std::endl;
 	char c = cv::waitKey(0);
 
-	if (c != 'q' && c != 'n') {
+	if ((c == 'Y' || c == 'y')) {
 		for (unsigned i = 0; i < numGoodFrames; ++i) {
-			char output[16];
-			sprintf(output, "cam%c.ini", (49 + i));
-			printf("Exporting %s...", output);
+			std::string output = std::format("cam{}.ini", i);
+			std::cout << "Exporting " << output << std::endl;
 
 			std::ofstream myfile;
 			myfile.open(output);
@@ -174,16 +154,13 @@ int main(int argc, char* argv[]) {
 			}
 
 			myfile.close();
-			printf("Success!\n");
+			std::cout << "Success." << std::endl;
 		}
 
-		printf("------------------------\n\n");
-		printf("Success!\n");
-		printf("Press any key to exit.\n");
-
-		cv::waitKey(0);
+		std::cout << "Finished." << std::endl;
+	} else {
+		std::cout << "Aborted." << std::endl;
 	}
 
 	return 0;
 }
-
